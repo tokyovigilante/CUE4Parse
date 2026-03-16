@@ -151,8 +151,7 @@ public class FReflectionCaptureData
             Brightness = Ar.Read<float>();
         }
 
-        //FullHDRCapturedData = Ar.ReadArray<byte>(); // Can also be stripped, but still a byte[]
-        Ar.SkipFixedArray(1); // Skip for now
+        FullHDRCapturedData = Ar.ReadArray<byte>();
         if (Ar.Game is EGame.GAME_FinalFantasy7Rebirth or EGame.GAME_ArenaBreakoutInfinite) Ar.Position += 4;
         if (Ar.Game == EGame.GAME_HogwartsLegacy)
         {
