@@ -76,7 +76,7 @@ public abstract class UTexture : UUnrealMaterial, IAssetUserData
 
         var stripFlags = new FStripDataFlags(Ar);
 
-        // If archive is has editor only data
+        // If archive has editor only data
         if (!stripFlags.IsEditorDataStripped())
         {
             if (FUE5MainStreamObjectVersion.Get(Ar) < FUE5MainStreamObjectVersion.Type.VirtualizedBulkDataHaveUniqueGuids)

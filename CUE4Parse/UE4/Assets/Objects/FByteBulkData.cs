@@ -54,9 +54,10 @@ public class FByteBulkData
         {
             Ar.Position += Header.ElementCount;
         }
-        else if (BulkDataFlags.HasFlag(BULKDATA_SerializeCompressedZLIB) && !BulkDataFlags.HasFlag(BULKDATA_PayloadInSeperateFile)) // but where is data? inlined or in separate file?
+        else if (BulkDataFlags.HasFlag(BULKDATA_SerializeCompressedZLIB) && !BulkDataFlags.HasFlag(BULKDATA_PayloadInSeperateFile))
         {
-            throw new ParserException(Ar, "TODO: CompressedZlib");
+            // Compressed zlib data inline — read SizeOnDisk bytes, advance past them
+            Ar.Position += Header.SizeOnDisk;
         }
 
         if (LazyLoad)
@@ -142,16 +143,29 @@ public class FByteBulkData
 #if DEBUG
             Log.Debug("bulk data in .uexp file (Payload At End Of File) (flags={BulkDataFlags}, pos={HeaderOffsetInFile}, size={HeaderSizeOnDisk}))", BulkDataFlags, Header.OffsetInFile, Header.SizeOnDisk);
 #endif
-            if (Header.OffsetInFile + Header.ElementCount > archive.Length)
+            var sizeToCheck = BulkDataFlags.HasFlag(BULKDATA_SerializeCompressedZLIB) ? Header.SizeOnDisk : (uint)Header.ElementCount;
+            if (Header.OffsetInFile + sizeToCheck > archive.Length)
                 throw new ParserException(archive, $"Failed to read PayloadAtEndOfFile, {Header.OffsetInFile} is out of range");
 
-            // stored in same file, but at different position
-            // save archive position
             position = Header.OffsetInFile;
+
+            if (BulkDataFlags.HasFlag(BULKDATA_SerializeCompressedZLIB))
+            {
+                var compressedData = new byte[Header.SizeOnDisk];
+                archive.ReadAt(position, compressedData, 0, compressedData.Length);
+                using var dataAr = new FByteArchive("", compressedData, _savedAr.Versions);
+                dataAr.SerializeCompressedNew(data, Header.ElementCount, "Zlib", ECompressionFlags.COMPRESS_NoFlags, false, out _);
+                return true;
+            }
         }
         else if (BulkDataFlags.HasFlag(BULKDATA_SerializeCompressedZLIB))
         {
-            throw new ParserException(archive, "TODO: CompressedZlib");
+            // Inline compressed zlib data — read compressed bytes and decompress
+            var compressedData = new byte[Header.SizeOnDisk];
+            archive.ReadAt(position, compressedData, 0, compressedData.Length);
+            using var dataAr = new FByteArchive("", compressedData, _savedAr.Versions);
+            dataAr.SerializeCompressedNew(data, Header.ElementCount, "Zlib", ECompressionFlags.COMPRESS_NoFlags, false, out _);
+            return true;
         }
         else if (BulkDataFlags.HasFlag(BULKDATA_LazyLoadable) || BulkDataFlags.HasFlag(BULKDATA_None))
         {
